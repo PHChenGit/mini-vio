@@ -1,0 +1,2 @@
+# The image COPYs nothing from the repo; keep the build context empty.
+*
