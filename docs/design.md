@@ -106,9 +106,10 @@ apps/
   run_euroc.cpp              主程式：命令列參數、主迴圈、輸出
   run_sim.cpp                階段 4：模擬資料上跑後端
 sim/                         模擬資料產生器（不計入核心行數）
-tests/                       GoogleTest 單元測試
+tests/                       GoogleTest 單元測試（dependencies_test.cpp 檢查容器內所有相依套件）
 scripts/
   podman.sh                  容器操作
+  build_and_test.sh          設定、編譯並執行全部測試
   eval_euroc.sh              對驗收序列跑 evo_ape，回報 ATE RMSE
 ```
 
@@ -472,7 +473,7 @@ output:
 
 ## 15. 測試
 
-- 框架：GoogleTest，以 `ctest` 執行。容器映像檔需加入 `libgtest-dev`。
+- 框架：GoogleTest（容器內的 `libgtest-dev`），以 `ctest` 執行。
 - 一行指令（KPI 的工程品質項目）：`scripts/podman.sh run scripts/build_and_test.sh`。
 - 優先寫測試的地方，都是錯了也不容易從軌跡看出來的部分：
   - `SensorSync`：區間端點內插、空區間、跨越多筆資料。

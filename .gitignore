@@ -1,0 +1,32 @@
+# Separate repository (open-slide project with its own history)
+docs/slides/
+
+# Editors and tools
+.openidea/
+.claude/
+.vscode/
+.idea/
+# clangd index, and an optional symlink to build/compile_commands.json
+.cache/
+/compile_commands.json
+*.swp
+*~
+.DS_Store
+
+# Build output
+/build*/
+CMakeUserPresets.json
+Testing/
+*.o
+*.a
+*.so
+*.exe
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Program output: Rerun recordings, trajectories, timing CSVs
+*.rrd
+/output/

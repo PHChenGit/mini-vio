@@ -1,7 +1,7 @@
 # Mini-VIO build environment.
 #
-# Ubuntu 24.04 (GCC 13, C++20) + OpenCV + Eigen + yaml-cpp + Ceres from apt,
-# GTSAM and the Rerun C++ SDK built from source at pinned versions,
+# Ubuntu 24.04 (GCC 13, C++20) + OpenCV + Eigen + yaml-cpp + Ceres + GoogleTest
+# from apt, GTSAM and the Rerun C++ SDK built from source at pinned versions,
 # evo in a Python venv for trajectory evaluation.
 #
 # Build:  scripts/podman.sh build
@@ -51,10 +51,13 @@ RUN curl -fsSL -o /tmp/rerun_cpp_sdk.zip \
     && cmake --install /tmp/rerun_cpp_sdk/build \
     && rm -rf /tmp/rerun_cpp_sdk /tmp/rerun_cpp_sdk.zip
 
-# Ceres Solver 2.2.0 from apt (uses the same system Eigen as GTSAM and OpenCV).
-# Use with find_package(Ceres) and link Ceres::ceres. Kept in its own layer so
-# adding it did not invalidate the cached GTSAM and Rerun builds above.
-RUN apt-get update && apt-get install -y --no-install-recommends libceres-dev \
+# Packages added after the first image was built. Kept in their own layer so
+# adding them does not invalidate the cached GTSAM and Rerun builds above.
+# - Ceres Solver 2.2.0 (same system Eigen as GTSAM and OpenCV):
+#   find_package(Ceres), link Ceres::ceres.
+# - GoogleTest: find_package(GTest), link GTest::gtest_main.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libceres-dev libgtest-dev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN ldconfig

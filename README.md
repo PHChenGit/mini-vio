@@ -14,6 +14,7 @@ All building and running happens inside a Podman container. The image
 | OpenCV, Eigen, yaml-cpp, Boost | Ubuntu 24.04 packages | apt |
 | GTSAM | 4.3.0 | built from source (system Eigen, no TBB, no `-march=native`) |
 | Ceres Solver | 2.2.0 | apt (`libceres-dev`), `find_package(Ceres)`, link `Ceres::ceres` |
+| GoogleTest | Ubuntu 24.04 package | apt (`libgtest-dev`) |
 | Rerun C++ SDK | 0.43.2 | built from source, `find_package(rerun_sdk)` |
 | evo | 1.38.1 | Python venv at `/opt/venv`, already on `PATH` |
 
@@ -65,6 +66,22 @@ scripts/podman.sh stop
 This stops and removes the container. Nothing in `/workspace` is lost, because it is the repo on the host. Anything
 installed outside `/workspace` (for example an extra `apt install`) is lost. Put permanent dependencies in the
 Containerfile instead.
+
+### Build and test
+
+One command configures, builds and runs every test:
+
+```bash
+scripts/podman.sh run scripts/build_and_test.sh    # from the host
+scripts/build_and_test.sh                          # inside the container
+```
+
+The build goes to `build/` (default type `RelWithDebInfo`; pass `-DCMAKE_BUILD_TYPE=Debug` to change it).
+`tests/dependencies_test.cpp` checks that Eigen, OpenCV, yaml-cpp, GTSAM, Ceres and the Rerun SDK all compile, link and
+run. If it fails, fix the container before debugging mini-VIO. `build/compile_commands.json` is generated for editors.
+
+In CMake, link a new target against `mini_vio_deps`. It carries C++20, the warning flags (`-Wall -Wextra -Wpedantic`)
+and every dependency.
 
 ### One-off commands
 
