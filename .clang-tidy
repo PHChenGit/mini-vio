@@ -1,0 +1,53 @@
+# Lint rules: Google style checks, Google naming, and common bug/performance checks.
+# Run with scripts/lint.sh (inside the container, after CMake has configured build/).
+Checks: >
+  -*,
+  google-*,
+  bugprone-*,
+  performance-*,
+  modernize-*,
+  readability-identifier-naming,
+  -bugprone-easily-swappable-parameters,
+  -modernize-use-trailing-return-type,
+  -modernize-use-nodiscard
+
+WarningsAsErrors: '*'
+
+# Only report problems in our own headers, not in GTSAM, OpenCV, Eigen, ...
+HeaderFilterRegex: '/(include|src|apps|sim|tests)/'
+
+CheckOptions:
+  # Google naming: https://google.github.io/styleguide/cppguide.html#Naming
+  - { key: readability-identifier-naming.NamespaceCase,          value: lower_case }
+  - { key: readability-identifier-naming.ClassCase,              value: CamelCase }
+  - { key: readability-identifier-naming.StructCase,             value: CamelCase }
+  - { key: readability-identifier-naming.EnumCase,               value: CamelCase }
+  - { key: readability-identifier-naming.UnionCase,              value: CamelCase }
+  - { key: readability-identifier-naming.TypeAliasCase,          value: CamelCase }
+  - { key: readability-identifier-naming.TypedefCase,            value: CamelCase }
+  - { key: readability-identifier-naming.ConceptCase,            value: CamelCase }
+  - { key: readability-identifier-naming.TemplateParameterCase,  value: CamelCase }
+  - { key: readability-identifier-naming.FunctionCase,           value: CamelCase }
+  - { key: readability-identifier-naming.MethodCase,             value: CamelCase }
+  - { key: readability-identifier-naming.VariableCase,           value: lower_case }
+  - { key: readability-identifier-naming.ParameterCase,          value: lower_case }
+  - { key: readability-identifier-naming.MemberCase,             value: lower_case }
+  - { key: readability-identifier-naming.PrivateMemberSuffix,    value: _ }
+  - { key: readability-identifier-naming.ProtectedMemberSuffix,  value: _ }
+  - { key: readability-identifier-naming.ConstexprVariableCase,  value: CamelCase }
+  - { key: readability-identifier-naming.ConstexprVariablePrefix, value: k }
+  - { key: readability-identifier-naming.GlobalConstantCase,     value: CamelCase }
+  - { key: readability-identifier-naming.GlobalConstantPrefix,   value: k }
+  - { key: readability-identifier-naming.StaticConstantCase,     value: CamelCase }
+  - { key: readability-identifier-naming.StaticConstantPrefix,   value: k }
+  - { key: readability-identifier-naming.EnumConstantCase,       value: CamelCase }
+  - { key: readability-identifier-naming.EnumConstantPrefix,     value: k }
+  - { key: readability-identifier-naming.MacroDefinitionCase,    value: UPPER_CASE }
+  # Exception for math notation: frame transforms and matrices such as T_W_B,
+  # R_W_B, T_B_R, R1, P2, K keep their uppercase names (see docs/design.md §2).
+  # Pattern: one uppercase letter, optionally one lowercase letter or digits,
+  # then optional _Frame parts, then an optional trailing _ for private members.
+  - { key: readability-identifier-naming.VariableIgnoredRegexp,  value: '^[A-Z][a-z0-9]?[0-9]*(_[A-Za-z0-9]+)*_?$' }
+  - { key: readability-identifier-naming.ParameterIgnoredRegexp, value: '^[A-Z][a-z0-9]?[0-9]*(_[A-Za-z0-9]+)*_?$' }
+  - { key: readability-identifier-naming.MemberIgnoredRegexp,    value: '^[A-Z][a-z0-9]?[0-9]*(_[A-Za-z0-9]+)*_?$' }
+  - { key: readability-identifier-naming.PrivateMemberIgnoredRegexp, value: '^[A-Z][a-z0-9]?[0-9]*(_[A-Za-z0-9]+)*_$' }

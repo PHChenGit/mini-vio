@@ -27,6 +27,8 @@
 - 後端的姿態變數 `X_k` 是 `T_W_B`（Body 在世界座標系下的姿態），輸出的 TUM 軌跡也是 `T_W_B`。
 - `GenericStereoFactor` 的 `body_P_sensor` 參數要給 `T_B_R = T_B_C0 · T_C0_R`，其中 `T_C0_R` 只有旋轉 `R1ᵀ`、沒有平移。
   **校正會讓左相機轉一個小角度**，忘記這個旋轉是最常見的錯誤之一，誤差小到不容易察覺，但會讓軌跡慢慢偏掉。
+- 程式中的變數名稱直接沿用這套記號（`T_W_B`、`R_W_B`、`T_B_R`），是 Google 命名規則的例外，clang-tidy 已設定允許。
+  其他名稱照 Google 規則（見 decisions.md 的「程式風格」）。
 - 時間戳在程式內部一律用 `int64_t` 奈秒（與 EuRoC 相同）。交給 GTSAM 的 FixedLagSmoother 時，轉成「相對序列起點的秒數」`double`。
 
 ## 3. 資料流
@@ -49,7 +51,7 @@ flowchart TD
     end
 
     subgraph BE["後端（耗時 KPI 35 ms = smoother.update）"]
-        BACKEND["Backend::addKeyframe<br/>⑤ 預積分＋視覺因子＋update"]
+        BACKEND["Backend::AddKeyframe<br/>⑤ 預積分＋視覺因子＋update"]
     end
 
     subgraph OUT["輸出 ⑥"]
@@ -66,7 +68,7 @@ flowchart TD
     TRACKER -->|"FrameFeatures"| KFSEL
     KFSEL -->|"否"| NONKF
     KFSEL -->|"是：FrameFeatures"| BACKEND
-    SENSORSYNC -->|"imuBetween(上一個 KF, 這一個 KF)<br/>std::span#lt;const ImuData#gt;"| BACKEND
+    SENSORSYNC -->|"ImuBetween(上一個 KF, 這一個 KF)<br/>std::span#lt;const ImuData#gt;"| BACKEND
     RECT -.->|"StereoCalibration<br/>（啟動時一次）"| BACKEND
 
     SIM -.->|"ImuData"| SENSORSYNC
@@ -81,7 +83,7 @@ flowchart TD
 
 實線是 `run_euroc` 的路徑，虛線是一次性的設定，或是階段 4 `run_sim` 取代 `EurocReader` 與前端的路徑。
 
-每一幀的處理順序（`apps/run_euroc.cpp` 的主迴圈）：
+每一幀的處理順序（`apps/run_euroc.cc` 的主迴圈）：
 
 1. `EurocReader` 依時間順序吐出下一組雙目影像，`SensorSync` 配對左右影像並緩衝 IMU。
 2. `StereoRectifier` 對左右影像做去畸變與校正（`cv::remap`，對照表在啟動時算一次）。
@@ -103,27 +105,29 @@ config/
 include/mini_vio/            標頭檔
 src/                         mini_vio_core 函式庫（計入 2,000–3,000 行預算）
 apps/
-  run_euroc.cpp              主程式：命令列參數、主迴圈、輸出
-  run_sim.cpp                階段 4：模擬資料上跑後端
+  run_euroc.cc              主程式：命令列參數、主迴圈、輸出
+  run_sim.cc                階段 4：模擬資料上跑後端
 sim/                         模擬資料產生器（不計入核心行數）
-tests/                       GoogleTest 單元測試（dependencies_test.cpp 檢查容器內所有相依套件）
+tests/                       GoogleTest 單元測試（dependencies_test.cc 檢查容器內所有相依套件）
 scripts/
   podman.sh                  容器操作
   build_and_test.sh          設定、編譯並執行全部測試
+  format.sh、lint.sh         clang-format 排版、clang-tidy 檢查
+  git-hooks/pre-commit       commit 前自動排版與檢查
   eval_euroc.sh              對驗收序列跑 evo_ape，回報 ATE RMSE
 ```
 
 | 模組 | 檔案 | 階段 | 撰寫者 | 預估行數 |
 |---|---|---|---|---|
-| 基本型別、設定檔讀取 | `types.hpp`、`config.hpp/.cpp` | 1 | Claude | 200 |
-| `EurocReader`、`SensorSync` | `dataset.hpp/.cpp`、`sensor_sync.hpp/.cpp` | 1 | Claude | 300 |
-| `StereoRectifier` | `rectifier.hpp/.cpp` | 1 | Claude | 120 |
-| `FeatureTracker`（含偵測、KLT、外點剔除） | `frontend.hpp/.cpp` | 2 | 使用者 | 400 |
-| `KeyframeSelector` | `keyframe.hpp/.cpp` | 2–3 | 使用者 | 80 |
-| `Backend`（純視覺版） | `backend.hpp/.cpp` | 3 | 使用者 | 400 |
-| `Backend` 加入 IMU、`StaticInitializer` | `backend.cpp`、`initializer.hpp/.cpp` | 4 | 使用者 | 300 |
-| `DynamicInitializer`（視覺慣性對齊，用 Ceres 求解） | `initializer.hpp/.cpp` | 5 | 使用者 | 200 |
-| 輸出：TUM、耗時統計、Rerun | `output.hpp/.cpp`、`viz.hpp/.cpp` | 1 起 | Claude | 300 |
+| 基本型別、設定檔讀取 | `types.h`、`config.h/.cc` | 1 | Claude | 200 |
+| `EurocReader`、`SensorSync` | `dataset.h/.cc`、`sensor_sync.h/.cc` | 1 | Claude | 300 |
+| `StereoRectifier` | `rectifier.h/.cc` | 1 | Claude | 120 |
+| `FeatureTracker`（含偵測、KLT、外點剔除） | `frontend.h/.cc` | 2 | 使用者 | 400 |
+| `KeyframeSelector` | `keyframe.h/.cc` | 2–3 | 使用者 | 80 |
+| `Backend`（純視覺版） | `backend.h/.cc` | 3 | 使用者 | 400 |
+| `Backend` 加入 IMU、`StaticInitializer` | `backend.cc`、`initializer.h/.cc` | 4 | 使用者 | 300 |
+| `DynamicInitializer`（視覺慣性對齊，用 Ceres 求解） | `initializer.h/.cc` | 5 | 使用者 | 200 |
+| 輸出：TUM、耗時統計、Rerun | `output.h/.cc`、`viz.h/.cc` | 1 起 | Claude | 300 |
 | 模擬資料產生器 | `sim/` | 4 | Claude | — |
 | 測試、評估腳本 | `tests/`、`scripts/` | 各階段 | Claude 建骨架，使用者補核心模組的測試 | — |
 
@@ -149,7 +153,7 @@ struct StereoImages {
 
 struct StereoMeasurement {
     FeatureId id;                             // 唯一、遞增，不重複使用
-    double uL, uR, v;                         // 校正後的像素座標
+    double u_l, u_r, v;                       // 校正後的像素座標（左 u、右 u、共同的 v）
 };
 
 struct FrameFeatures {
@@ -170,14 +174,14 @@ struct StereoCalibration {                    // StereoRectifier 的輸出，後
 ```cpp
 template <typename R>
 concept DatasetReader = requires(R r) {
-    { r.next() } -> std::same_as<std::optional<SensorEvent>>;   // 依時間順序的影像或 IMU
-    { r.cameraCalibration() } -> std::same_as<RawStereoCalibration>;
-    { r.imuNoise() } -> std::same_as<ImuNoiseParams>;
+    { r.Next() } -> std::same_as<std::optional<SensorEvent>>;   // 依時間順序的影像或 IMU
+    { r.CameraCalibration() } -> std::same_as<RawStereoCalibration>;
+    { r.ImuNoise() } -> std::same_as<ImuNoiseParams>;
 };
 
 template <typename T>
 concept Tracker = requires(T t, const cv::Mat& left, const cv::Mat& right, Timestamp ts) {
-    { t.track(ts, left, right) } -> std::same_as<FrameFeatures>;
+    { t.Track(ts, left, right) } -> std::same_as<FrameFeatures>;
 };
 ```
 
@@ -187,7 +191,7 @@ concept Tracker = requires(T t, const cv::Mat& left, const cv::Mat& right, Times
 `SensorSync` 對外提供：
 
 ```cpp
-std::span<const ImuData> imuBetween(Timestamp t0, Timestamp t1);
+std::span<const ImuData> ImuBetween(Timestamp t0, Timestamp t1);
 ```
 
 回傳的區間第一筆與最後一筆分別內插到 `t0`、`t1`，因此不能直接指向原始緩衝區。做法是 `SensorSync` 內部維護一個
@@ -269,9 +273,9 @@ stateDiagram-v2
 - 第一個 Keyframe：單位姿態（階段 3），或初始化給出的姿態（階段 4 起）。
 - 階段 3，以及階段 5 動態初始化完成前（純視覺模式）：**Keyframe 對 Keyframe 的雙目 PnP**，不使用圖中的 Landmark。
   1. 3D 點：上一個 Keyframe 中雙目匹配成功的特徵，直接以視差三角化，表示在上一個 Keyframe 的校正左相機座標系：
-     `Z = fx · baseline / (uL − uR)`、`X = (uL − cx) · Z / fx`、`Y = (v − cy) · Z / fy`。
+     `Z = fx · baseline / (u_l − u_r)`、`X = (u_l − cx) · Z / fx`、`Y = (v − cy) · Z / fy`。
      視差小於 `backend.min_disparity_px` 的點不用。
-  2. 2D 點：同一個特徵 ID 在這一幀左影像的 `(uL, v)`。KLT 追蹤本身帶著 ID，不需要另外匹配。
+  2. 2D 點：同一個特徵 ID 在這一幀左影像的 `(u_l, v)`。KLT 追蹤本身帶著 ID，不需要另外匹配。
   3. `cv::solvePnPRansac` 求相對姿態。它回傳的 `rvec`、`tvec` 是把點從上一個 Keyframe 的相機座標系轉到這一幀的相機座標系，
      也就是 `T_{R,k}_{R,k−1}`，**要先取反矩陣**才是 `T_{R,k−1}_{R,k}`。
   4. 接在上一個 Keyframe 已優化的姿態後面：`T_W_Bk = T_W_Bk−1 · T_B_R · T_{R,k−1}_{R,k} · T_B_R⁻¹`。
@@ -400,7 +404,7 @@ PnP 內點不足只會讓這個 Keyframe 的初始值退回等速模型，不會
 - 開頭可選擇靜止 2 秒（測試 11.4 的靜止初始化），或一開始就在移動（測試 11.5 的動態初始化，可與真值比對解出的重力方向、速度與 Bias）。
 - 輸出真值軌跡（TUM 格式），用同一套 evo 評估。
 
-`apps/run_sim.cpp` 與 `run_euroc.cpp` 共用 `Backend`、`KeyframeSelector`、輸出模組，只是資料來源不同。
+`apps/run_sim.cc` 與 `run_euroc.cc` 共用 `Backend`、`KeyframeSelector`、輸出模組，只是資料來源不同。
 
 ## 13. 設定檔
 

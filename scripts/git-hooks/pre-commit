@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# Pre-commit hook: clang-format and clang-tidy on the staged C++ files.
+# Enable once per clone:  git config core.hooksPath scripts/git-hooks
+# Skip in an emergency:   git commit --no-verify
+#
+# - Fully staged files are formatted in place and re-staged.
+# - Partially staged files (git add -p) are only checked, so unstaged hunks never
+#   sneak into the commit; format them yourself and stage again.
+# - clang-tidy runs on the staged .cc files; any finding blocks the commit.
+#
+# The tools live in the container, so on the host this runs them through
+# scripts/podman.sh run; inside the container it runs them directly.
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+mapfile -t staged < <(git diff --cached --name-only --diff-filter=ACMR -- '*.h' '*.cc')
+((${#staged[@]} > 0)) || exit 0
+
+in_container() {
+    if [[ -f /run/.containerenv || -f /.dockerenv ]]; then
+        "$@"
+    else
+        scripts/podman.sh run "$@"
+    fi
+}
+
+fully_staged=()
+partially_staged=()
+for f in "${staged[@]}"; do
+    if git diff --quiet -- "$f"; then
+        fully_staged+=("$f")
+    else
+        partially_staged+=("$f")
+    fi
+done
+
+if ((${#fully_staged[@]} > 0)); then
+    in_container scripts/format.sh "${fully_staged[@]}"
+    git add -- "${fully_staged[@]}"
+fi
+
+if ((${#partially_staged[@]} > 0)); then
+    if ! in_container scripts/format.sh --check "${partially_staged[@]}"; then
+        echo "pre-commit: these partially staged files need formatting; run scripts/format.sh and stage again:" >&2
+        printf '  %s\n' "${partially_staged[@]}" >&2
+        exit 1
+    fi
+fi
+
+mapfile -t staged_cc < <(printf '%s\n' "${staged[@]}" | grep '\.cc$' || true)
+if ((${#staged_cc[@]} > 0)); then
+    if ! in_container scripts/lint.sh "${staged_cc[@]}"; then
+        echo "pre-commit: clang-tidy found problems (see above). Fix them, or commit with --no-verify to skip." >&2
+        exit 1
+    fi
+fi

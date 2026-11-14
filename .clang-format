@@ -1,0 +1,7 @@
+# Google C++ style with a 120-character line limit.
+# The container pins clang-format to the host's version (see Containerfile).
+BasedOnStyle: Google
+ColumnLimit: 120
+# Google's default derives pointer alignment from the file; make it fixed.
+DerivePointerAlignment: false
+PointerAlignment: Left

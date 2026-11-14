@@ -24,6 +24,7 @@
 | 退化保護 | 最小視差或最大距離門檻，ZUPT 為選配 | 雙目的單次觀測已有深度，靜止不會造成奇異，弱點是遠處視差極小的點 |
 | 執行緒 | 第一版單一執行緒 | KPI 都以單一執行緒定義，也能控制程式碼行數 |
 | 初始化的最小平方 | Ceres Solver 2.2.0（apt 套件） | 動態初始化的殘差由自己寫、Jacobian 用自動微分，對照 GTSAM 把殘差與 Jacobian 都包在因子裡的做法；可用 SphereManifold 直接處理「重力大小固定」的限制。滑動視窗後端仍用 GTSAM。apt 版本與 GTSAM、OpenCV 共用系統 Eigen |
+| 程式風格 | Google C++ Style，每行上限 120 字元，副檔名 `.h`/`.cc`；命名照 Google，但座標轉換與矩陣保留數學記號（`T_W_B`、`R1`） | 用現成、完整的規範，clang-format 與 clang-tidy 能自動檢查；數學記號讓座標系一眼可辨（design.md 第 2 節），換成 `t_w_b` 反而容易搞混。由 git pre-commit hook 自動排版與檢查 |
 | 邊緣化 | 交給 GTSAM 的 IncrementalFixedLagSmoother | 不手刻 Schur Complement，原理改以說明投影片補足 |
 | 視覺化 | Rerun，從第一階段就使用 | 看到追蹤、Landmark 與軌跡，比只看誤差數字學得更多 |
 | 評分用的軌跡 | 每個 Keyframe 建立當下的估計值 | 符合 Odometry 的即時定義，不使用事後平滑的結果 |

@@ -77,11 +77,30 @@ scripts/build_and_test.sh                          # inside the container
 ```
 
 The build goes to `build/` (default type `RelWithDebInfo`; pass `-DCMAKE_BUILD_TYPE=Debug` to change it).
-`tests/dependencies_test.cpp` checks that Eigen, OpenCV, yaml-cpp, GTSAM, Ceres and the Rerun SDK all compile, link and
+`tests/dependencies_test.cc` checks that Eigen, OpenCV, yaml-cpp, GTSAM, Ceres and the Rerun SDK all compile, link and
 run. If it fails, fix the container before debugging mini-VIO. `build/compile_commands.json` is generated for editors.
 
 In CMake, link a new target against `mini_vio_deps`. It carries C++20, the warning flags (`-Wall -Wextra -Wpedantic`)
 and every dependency.
+
+### Code style: format and lint
+
+Google C++ style with a 120-column limit. `.clang-format` defines the layout, `.clang-tidy` the lint rules (Google
+naming, with an exception for math names such as `T_W_B` and `R1`). Files are `.h` / `.cc`.
+
+```bash
+git config core.hooksPath scripts/git-hooks          # once per clone: enable the pre-commit hook
+scripts/format.sh                                    # format all C++ files in place
+scripts/format.sh --check                            # only report
+scripts/podman.sh run scripts/lint.sh                # clang-tidy on all .cc files
+```
+
+The pre-commit hook formats the staged C++ files (fully staged ones are fixed and re-staged; partially staged ones are
+only checked) and runs clang-tidy on the staged `.cc` files. Any finding blocks the commit; `git commit --no-verify`
+skips it. The hook runs the tools through `scripts/podman.sh run`, so the image must be built.
+
+The image pins clang-format to the same version as the host (23.1.5), so the editor's format-on-save and the hook
+agree. If the host's clang-format is upgraded, update `CLANG_FORMAT_VERSION` in the Containerfile too.
 
 ### One-off commands
 

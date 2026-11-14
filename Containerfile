@@ -2,7 +2,7 @@
 #
 # Ubuntu 24.04 (GCC 13, C++20) + OpenCV + Eigen + yaml-cpp + Ceres + GoogleTest
 # from apt, GTSAM and the Rerun C++ SDK built from source at pinned versions,
-# evo in a Python venv for trajectory evaluation.
+# evo, clang-format and clang-tidy in a Python venv.
 #
 # Build:  scripts/podman.sh build
 
@@ -66,6 +66,14 @@ RUN ldconfig
 ENV VIRTUAL_ENV=/opt/venv
 RUN python3 -m venv ${VIRTUAL_ENV} \
     && ${VIRTUAL_ENV}/bin/pip install --no-cache-dir evo==${EVO_VERSION}
+
+# clang-format / clang-tidy for Google style (.clang-format, .clang-tidy).
+# Installed from PyPI to pin the exact version: clang-format must match the
+# host's version, otherwise the editor and the pre-commit hook disagree.
+ARG CLANG_FORMAT_VERSION=23.1.5
+ARG CLANG_TIDY_VERSION=23.1.4
+RUN ${VIRTUAL_ENV}/bin/pip install --no-cache-dir \
+        clang-format==${CLANG_FORMAT_VERSION} clang-tidy==${CLANG_TIDY_VERSION}
 ENV PATH=${VIRTUAL_ENV}/bin:${PATH} \
     MPLBACKEND=Agg
 
