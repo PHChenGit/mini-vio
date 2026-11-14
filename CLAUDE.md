@@ -46,6 +46,9 @@ Mounts: repo → `/workspace`, `~/Documents/datasets/EuRoC` → `/data/euroc` (r
 Rerun recordings (`.rrd`) are viewed on the host with `rerun` 0.43.2 (must match the SDK version in the image).
 ATE evaluation uses `evo_ape euroc <mav0/state_groundtruth_estimate0/data.csv> <traj.tum> -a` (evo is in the image).
 
+`.devcontainer.json` opens the repo inside the same image for OpenIDEA/VS Code (clangd 22.1.1 in the image); host-side
+"header not found" errors in the editor are expected without it.
+
 ## Code style
 
 Google C++ style with a 120-column limit (`.clang-format`), enforced by clang-tidy (`.clang-tidy`, warnings are

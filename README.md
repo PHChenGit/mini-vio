@@ -83,6 +83,20 @@ run. If it fails, fix the container before debugging mini-VIO. `build/compile_co
 In CMake, link a new target against `mini_vio_deps`. It carries C++20, the warning flags (`-Wall -Wextra -Wpedantic`)
 and every dependency.
 
+### Editing inside the container (OpenIDEA / Dev Containers)
+
+`.devcontainer.json` lets an editor that speaks the Dev Containers spec (OpenIDEA, VS Code) open the repo inside the
+container, so clangd sees GTSAM, OpenCV, Eigen and the other headers. On the host they are missing, and the editor
+shows false "file not found" errors.
+
+- It reuses `localhost/mini-vio:dev`; run `scripts/podman.sh build` first.
+- Same mounts as `scripts/podman.sh` (`/workspace`, `/data/euroc` read-only) and `--userns=keep-id`, so files stay
+  owned by your host user.
+- After the container starts, it configures CMake so `build/compile_commands.json` exists. clangd 22.1.1 is in the
+  image (the newest on PyPI).
+- `docker` on this host is podman-docker, so the Dev Containers CLI drives Podman. If the editor cannot reach it, start
+  the socket with `systemctl --user enable --now podman.socket`.
+
 ### Code style: format and lint
 
 Google C++ style with a 120-column limit. `.clang-format` defines the layout, `.clang-tidy` the lint rules (Google

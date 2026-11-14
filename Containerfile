@@ -67,13 +67,17 @@ ENV VIRTUAL_ENV=/opt/venv
 RUN python3 -m venv ${VIRTUAL_ENV} \
     && ${VIRTUAL_ENV}/bin/pip install --no-cache-dir evo==${EVO_VERSION}
 
-# clang-format / clang-tidy for Google style (.clang-format, .clang-tidy).
-# Installed from PyPI to pin the exact version: clang-format must match the
-# host's version, otherwise the editor and the pre-commit hook disagree.
+# clang-format / clang-tidy for Google style (.clang-format, .clang-tidy), and
+# clangd for editors attached through .devcontainer.json.
+# Installed from PyPI to pin exact versions: clang-format must match the host's
+# version, otherwise the editor and the pre-commit hook disagree. (PyPI's newest
+# clangd is 22.1.1; the hook's clang-format 23 still has the last word.)
 ARG CLANG_FORMAT_VERSION=23.1.5
 ARG CLANG_TIDY_VERSION=23.1.4
+ARG CLANGD_VERSION=22.1.1
 RUN ${VIRTUAL_ENV}/bin/pip install --no-cache-dir \
-        clang-format==${CLANG_FORMAT_VERSION} clang-tidy==${CLANG_TIDY_VERSION}
+        clang-format==${CLANG_FORMAT_VERSION} clang-tidy==${CLANG_TIDY_VERSION} \
+        clangd==${CLANGD_VERSION}
 ENV PATH=${VIRTUAL_ENV}/bin:${PATH} \
     MPLBACKEND=Agg
 

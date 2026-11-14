@@ -1,0 +1,24 @@
+// Dev container for OpenIDEA (or any editor that uses the Dev Containers CLI).
+// It reuses the image built by `scripts/podman.sh build`; build that first.
+// On this host `docker` is podman-docker, so the CLI drives Podman.
+{
+  "name": "mini-vio",
+  "image": "localhost/mini-vio:dev",
+
+  // Same mounts as scripts/podman.sh: repo at /workspace, EuRoC read-only.
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+  "mounts": [
+    "source=${localEnv:HOME}/Documents/datasets/EuRoC,target=/data/euroc,type=bind,readonly"
+  ],
+
+  // Rootless Podman: run as the host user so files written to /workspace stay
+  // owned by you. keep-id already maps the UID, so the CLI must not rebuild the
+  // image to change it.
+  "runArgs": ["--userns=keep-id"],
+  // Inside, the UID maps to the image's own `ubuntu` user (home /home/ubuntu).
+  "updateRemoteUserUID": false,
+
+  // Configure CMake once so build/compile_commands.json exists for clangd.
+  "postCreateCommand": "cmake -S . -B build -G Ninja"
+}
