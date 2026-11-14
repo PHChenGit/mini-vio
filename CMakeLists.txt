@@ -24,11 +24,6 @@ add_library(mini_vio_warnings INTERFACE)
 target_compile_options(mini_vio_warnings INTERFACE -Wall -Wextra -Wpedantic)
 
 # Everything a mini-VIO target needs: C++20, warnings and all dependencies.
-# The core library (src/, include/mini_vio/) will link this once stage 1 adds
-# its first sources:
-#   add_library(mini_vio_core src/...)
-#   target_include_directories(mini_vio_core PUBLIC include)
-#   target_link_libraries(mini_vio_core PUBLIC mini_vio_deps)
 add_library(mini_vio_deps INTERFACE)
 target_link_libraries(mini_vio_deps INTERFACE
     mini_vio_warnings
@@ -39,6 +34,13 @@ target_link_libraries(mini_vio_deps INTERFACE
     Ceres::ceres
     rerun_sdk
 )
+
+# The core library (counts toward the 2,000-3,000 line budget). Add new sources here.
+add_library(mini_vio_core
+    src/euroc_reader.cc
+)
+target_include_directories(mini_vio_core PUBLIC include)
+target_link_libraries(mini_vio_core PUBLIC mini_vio_deps)
 
 enable_testing()
 add_subdirectory(tests)

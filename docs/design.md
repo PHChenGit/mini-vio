@@ -85,7 +85,8 @@ flowchart TD
 
 每一幀的處理順序（`apps/run_euroc.cc` 的主迴圈）：
 
-1. `EurocReader` 依時間順序吐出下一組雙目影像，`SensorSync` 配對左右影像並緩衝 IMU。
+1. `EurocReader` 依時間順序逐筆吐出 IMU 量測與左、右影像（時間戳相同時依 IMU、左、右的順序，讓 `SensorSync` 收到
+   時間 t 的影像時，已經有到 t 為止的 IMU），`SensorSync` 配對左右影像並緩衝 IMU。
 2. `StereoRectifier` 對左右影像做去畸變與校正（`cv::remap`，對照表在啟動時算一次）。
 3. `FeatureTracker` 追蹤並補點，輸出 `FrameFeatures`。
 4. `KeyframeSelector` 判斷是否為 Keyframe。不是的話，這一幀的影像只用於前端追蹤與視覺化，不會變成後端的狀態；
@@ -120,7 +121,7 @@ scripts/
 | 模組 | 檔案 | 階段 | 撰寫者 | 預估行數 |
 |---|---|---|---|---|
 | 基本型別、設定檔讀取 | `types.h`、`config.h/.cc` | 1 | Claude | 200 |
-| `EurocReader`、`SensorSync` | `dataset.h/.cc`、`sensor_sync.h/.cc` | 1 | Claude | 300 |
+| `DatasetReader` Concept、`EurocReader`、`SensorSync` | `dataset_reader.h`、`euroc_reader.h/.cc`、`sensor_sync.h/.cc` | 1 | Claude | 300 |
 | `StereoRectifier` | `rectifier.h/.cc` | 1 | Claude | 120 |
 | `FeatureTracker`（含偵測、KLT、外點剔除） | `frontend.h/.cc` | 2 | 使用者 | 400 |
 | `KeyframeSelector` | `keyframe.h/.cc` | 2–3 | 使用者 | 80 |
@@ -146,7 +147,15 @@ struct ImuData {
     Eigen::Vector3d accel;                    // m/s²，比力（靜止時約為 +g 朝上）
 };
 
-struct StereoImages {
+struct CameraImage {                          // DatasetReader 的輸出：單一相機的一張原始影像
+    Timestamp t;
+    CameraId camera;                          // kLeft（cam0）或 kRight（cam1）
+    cv::Mat image;
+};
+
+using SensorEvent = std::variant<ImuData, CameraImage>;
+
+struct StereoImages {                         // SensorSync 配對後的輸出
     Timestamp t;
     cv::Mat left, right;                      // 8 位元灰階；校正前或校正後由變數名稱區分
 };
@@ -177,6 +186,7 @@ concept DatasetReader = requires(R r) {
     { r.Next() } -> std::same_as<std::optional<SensorEvent>>;   // 依時間順序的影像或 IMU
     { r.CameraCalibration() } -> std::same_as<RawStereoCalibration>;
     { r.ImuNoise() } -> std::same_as<ImuNoiseParams>;
+    { r.SequenceStart() } -> std::same_as<Timestamp>;           // 整條序列的第一個時間戳，「相對起點秒數」的原點
 };
 
 template <typename T>
@@ -184,6 +194,9 @@ concept Tracker = requires(T t, const cv::Mat& left, const cv::Mat& right, Times
     { t.Track(ts, left, right) } -> std::same_as<FrameFeatures>;
 };
 ```
+
+`RawStereoCalibration`（左右相機的 `T_B_C`、內參、畸變係數、解析度）與 `ImuNoiseParams` 是資料集給的原始參數，定義在
+`include/mini_vio/types.h`。`EurocReader` 只在 `Next()` 輪到某張影像時才從硬碟讀取；真值不在這裡讀，由 evo 直接讀取。
 
 `FeatureDetector` 的 Concept 也照同樣方式定義（輸入影像與既有特徵位置，輸出新特徵點）。第一版每個 Concept 只有一種實作，
 主程式以樣板參數接收，不用 virtual 函式。

@@ -43,6 +43,8 @@ CheckOptions:
   - { key: readability-identifier-naming.EnumConstantCase,       value: CamelCase }
   - { key: readability-identifier-naming.EnumConstantPrefix,     value: k }
   - { key: readability-identifier-naming.MacroDefinitionCase,    value: UPPER_CASE }
+  # Google include guards end in an underscore: MINI_VIO_TYPES_H_.
+  - { key: readability-identifier-naming.MacroDefinitionIgnoredRegexp, value: '^[A-Z0-9_]+_H_$' }
   # Exception for math notation: frame transforms and matrices such as T_W_B,
   # R_W_B, T_B_R, R1, P2, K keep their uppercase names (see docs/design.md §2).
   # Pattern: one uppercase letter, optionally one lowercase letter or digits,

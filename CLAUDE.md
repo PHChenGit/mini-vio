@@ -70,7 +70,10 @@ the commit on findings).
 - New apt packages go in the late apt layer (with Ceres/GoogleTest), not the first one, so the GTSAM and Rerun layers
   stay cached.
 - CMake: link every target against the `mini_vio_deps` interface target (C++20, `-Wall -Wextra -Wpedantic`, all
-  dependencies). `mini_vio_core` does not exist yet; its intended form is commented in `CMakeLists.txt`.
+  dependencies). Core sources go into the `mini_vio_core` library (list in `CMakeLists.txt`), headers under
+  `include/mini_vio/`.
+- Fatal startup errors (missing or malformed dataset files) throw `std::runtime_error` with file and line, a
+  deliberate deviation from Google's no-exceptions rule (see `docs/decisions.md`).
 - GTSAM 4.3: `IncrementalFixedLagSmoother` is in `gtsam`, not `gtsam_unstable`. Ceres: link `Ceres::ceres`.
 - `tests/dependencies_test.cc` checks each dependency; if it fails, the container is broken, not mini-VIO.
 
