@@ -13,12 +13,12 @@ namespace mini_vio {
 
 template <typename R>
 concept DatasetReader = requires(R r) {
-  // Next IMU sample or camera image in time order; std::nullopt at the end.
-  { r.Next() } -> std::same_as<std::optional<SensorEvent>>;
-  { r.CameraCalibration() } -> std::same_as<RawStereoCalibration>;
-  { r.ImuNoise() } -> std::same_as<ImuNoiseParams>;
-  // First timestamp of the whole sequence, the origin for "seconds since start".
-  { r.SequenceStart() } -> std::same_as<Timestamp>;
+    // Next IMU sample or camera image in time order; std::nullopt at the end.
+    { r.Next() } -> std::same_as<std::optional<SensorEvent>>;
+    { r.CameraCalibration() } -> std::same_as<RawStereoCalibration>;
+    { r.ImuNoise() } -> std::same_as<ImuNoiseParams>;
+    // First timestamp of the whole sequence, the origin for "seconds since start".
+    { r.SequenceStart() } -> std::same_as<Timestamp>;
 };
 
 }  // namespace mini_vio

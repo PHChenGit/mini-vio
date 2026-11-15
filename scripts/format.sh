@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Format C++ sources with clang-format (Google style, 120 columns, see .clang-format).
+# Format C++ sources with clang-format (Google style, 120 columns, 4-space indent, see .clang-format).
 #
 #   scripts/format.sh                 format every tracked and new C++ file in place
 #   scripts/format.sh --check         only report files that need formatting (exit 1 if any)

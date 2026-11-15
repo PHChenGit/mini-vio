@@ -99,8 +99,8 @@ shows false "file not found" errors.
 
 ### Code style: format and lint
 
-Google C++ style with a 120-column limit. `.clang-format` defines the layout, `.clang-tidy` the lint rules (Google
-naming, with an exception for math names such as `T_W_B` and `R1`). Files are `.h` / `.cc`.
+Google C++ style with a 120-column limit and 4-space indentation. `.clang-format` defines the layout, `.clang-tidy`
+the lint rules (Google naming, with an exception for math names such as `T_W_B` and `R1`). Files are `.h` / `.cc`.
 
 ```bash
 git config core.hooksPath scripts/git-hooks          # once per clone: enable the pre-commit hook

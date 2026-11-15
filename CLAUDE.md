@@ -51,7 +51,7 @@ ATE evaluation uses `evo_ape euroc <mav0/state_groundtruth_estimate0/data.csv> <
 
 ## Code style
 
-Google C++ style with a 120-column limit (`.clang-format`), enforced by clang-tidy (`.clang-tidy`, warnings are
+Google C++ style with a 120-column limit and 4-space indentation (`.clang-format`), enforced by clang-tidy (`.clang-tidy`, warnings are
 errors) and the pre-commit hook in `scripts/git-hooks/` (formats fully staged files, lints staged `.cc` files, blocks
 the commit on findings).
 

@@ -12,12 +12,12 @@
 namespace mini_vio {
 
 struct EurocReaderOptions {
-  // Sequence folder, the one that contains mav0/ (e.g. .../MH_01_easy).
-  std::filesystem::path sequence_dir;
-  // Debug only (FR-1): skip this many seconds from the sequence start. Acceptance runs use 0.
-  double start_offset_s = 0.0;
-  // Debug only: play this many seconds after the offset. Negative means until the end.
-  double duration_s = -1.0;
+    // Sequence folder, the one that contains mav0/ (e.g. .../MH_01_easy).
+    std::filesystem::path sequence_dir;
+    // Debug only (FR-1): skip this many seconds from the sequence start. Acceptance runs use 0.
+    double start_offset_s = 0.0;
+    // Debug only: play this many seconds after the offset. Negative means until the end.
+    double duration_s = -1.0;
 };
 
 // Reads mav0/cam0, mav0/cam1 and mav0/imu0 and emits their samples as one
@@ -32,35 +32,35 @@ struct EurocReaderOptions {
 // malformed. These are startup errors that end the program, so they are
 // reported with the file and line instead of being returned.
 class EurocReader {
- public:
-  explicit EurocReader(const EurocReaderOptions& options);
+public:
+    explicit EurocReader(const EurocReaderOptions& options);
 
-  std::optional<SensorEvent> Next();
+    std::optional<SensorEvent> Next();
 
-  RawStereoCalibration CameraCalibration() const { return calibration_; }
-  ImuNoiseParams ImuNoise() const { return imu_noise_; }
-  Timestamp SequenceStart() const { return sequence_start_; }
+    RawStereoCalibration CameraCalibration() const { return calibration_; }
+    ImuNoiseParams ImuNoise() const { return imu_noise_; }
+    Timestamp SequenceStart() const { return sequence_start_; }
 
- private:
-  struct ImageEntry {
-    Timestamp t;
-    std::filesystem::path path;
-  };
+private:
+    struct ImageEntry {
+        Timestamp t;
+        std::filesystem::path path;
+    };
 
-  CameraImage LoadImage(const ImageEntry& entry, CameraId camera) const;
+    CameraImage LoadImage(const ImageEntry& entry, CameraId camera) const;
 
-  RawStereoCalibration calibration_;
-  ImuNoiseParams imu_noise_;
-  Timestamp sequence_start_ = 0;
+    RawStereoCalibration calibration_;
+    ImuNoiseParams imu_noise_;
+    Timestamp sequence_start_ = 0;
 
-  std::vector<ImuData> imu_;
-  std::vector<ImageEntry> left_;
-  std::vector<ImageEntry> right_;
-  // Next unread entry of each stream; all three already skip the start offset.
-  std::size_t next_imu_ = 0;
-  std::size_t next_left_ = 0;
-  std::size_t next_right_ = 0;
-  Timestamp end_time_ = 0;  // inclusive
+    std::vector<ImuData> imu_;
+    std::vector<ImageEntry> left_;
+    std::vector<ImageEntry> right_;
+    // Next unread entry of each stream; all three already skip the start offset.
+    std::size_t next_imu_ = 0;
+    std::size_t next_left_ = 0;
+    std::size_t next_right_ = 0;
+    Timestamp end_time_ = 0;  // inclusive
 };
 
 }  // namespace mini_vio
