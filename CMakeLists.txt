@@ -38,6 +38,7 @@ target_link_libraries(mini_vio_deps INTERFACE
 # The core library (counts toward the 2,000-3,000 line budget). Add new sources here.
 add_library(mini_vio_core
     src/euroc_reader.cc
+    src/sensor_sync.cc
 )
 target_include_directories(mini_vio_core PUBLIC include)
 target_link_libraries(mini_vio_core PUBLIC mini_vio_deps)

@@ -59,6 +59,12 @@ struct ImuNoiseParams {
     double accel_random_walk = 0.0;    // m/s³/√Hz
 };
 
+struct StereoImages {
+    Timestamp t;
+    cv::Mat left;
+    cv::Mat right;
+};
+
 }  // namespace mini_vio
 
 #endif  // MINI_VIO_TYPES_H_
