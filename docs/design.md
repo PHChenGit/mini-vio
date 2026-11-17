@@ -3,7 +3,7 @@
 本文件說明 Mini-VIO 第一版的架構：模組切分、資料流、座標系、介面與後端的變數生命週期。需求見
 [requirements.md](requirements.md)，目的、技術決定與分階段計畫見 [decisions.md](decisions.md)。
 
-最後更新：2026-11-14
+最後更新：2026-11-17
 
 ## 1. 設計原則
 
@@ -60,15 +60,15 @@ flowchart TD
         RRD[("Rerun 記錄檔 .rrd")]
     end
 
-    NONKF["非 Keyframe：<br/>影像只用於追蹤與視覺化<br/>IMU 留在 SensorSync 緩衝區"]
+    NONKF["非 Keyframe：<br/>以 IMU 推算運動並持續累積預積分<br/>不新增後端因子圖狀態"]
 
     READER -->|"SensorEvent<br/>（影像或 IMU，依時間順序）"| SENSORSYNC
-    SENSORSYNC -->|"StereoImages（原始）"| RECT
+    SENSORSYNC -->|"StereoImages（原始，已確認 IMU 涵蓋至該幀時間）"| RECT
     RECT -->|"StereoImages（校正後）"| TRACKER
     TRACKER -->|"FrameFeatures"| KFSEL
     KFSEL -->|"否"| NONKF
-    KFSEL -->|"是：FrameFeatures"| BACKEND
-    SENSORSYNC -->|"ImuBetween(上一個 KF, 這一個 KF)<br/>std::span#lt;const ImuData#gt;"| BACKEND
+    KFSEL -->|"是：FrameFeatures（校正 IMU 漂移）"| BACKEND
+    SENSORSYNC -->|"ImuBetween(t0, t1)<br/>std::span#lt;const ImuData#gt;"| BACKEND
     RECT -.->|"StereoCalibration<br/>（啟動時一次）"| BACKEND
 
     SIM -.->|"ImuData"| SENSORSYNC
@@ -85,14 +85,11 @@ flowchart TD
 
 每一幀的處理順序（`apps/run_euroc.cc` 的主迴圈）：
 
-1. `EurocReader` 依時間順序逐筆吐出 IMU 量測與左、右影像（時間戳相同時依 IMU、左、右的順序，讓 `SensorSync` 收到
-   時間 t 的影像時，已經有到 t 為止的 IMU），`SensorSync` 配對左右影像並緩衝 IMU。
+1. `EurocReader` 依時間順序逐筆吐出 IMU 量測與左、右影像，`SensorSync` 配對同時間戳的左右影像並緩衝 IMU。當配對好的雙目影像時間為 `t`，且 IMU 已收到 `last_imu_t >= t` 時，`SensorSync` 才吐出該幀，確保**每一幀都有對應的 IMU 資料**（可透過 `ImuBetween` 取得端點內插後的 IMU 區間）。
 2. `StereoRectifier` 對左右影像做去畸變與校正（`cv::remap`，對照表在啟動時算一次）。
-3. `FeatureTracker` 追蹤並補點，輸出 `FrameFeatures`。
-4. `KeyframeSelector` 判斷是否為 Keyframe。不是的話，這一幀的影像只用於前端追蹤與視覺化，不會變成後端的狀態；
-   這段期間的 IMU 量測留在 `SensorSync` 的緩衝區中，不會丟棄。
-5. 是 Keyframe 時，`SensorSync` 提供上一個 Keyframe 到這一個 Keyframe 之間的**全部** IMU 量測，連同 `FrameFeatures` 交給 `Backend`。
-   後端把它們預積分成一個 `CombinedImuFactor`（理由見 11.1）。
+3. `FeatureTracker` 追蹤並補點，輸出 `FrameFeatures`。每一幀的 IMU 可用於運動推算（或前端旋轉預測）與累積預積分。
+4. `KeyframeSelector` 判斷是否為 Keyframe。IMU 雖然在每一幀都提供高頻率的運動推算，但積分誤差與 Bias 會隨時間漂移；Keyframe 的角色就是進入後端因子圖，用雙目視覺幾何來**校正（Calibrate）IMU 的累積漂移與 Bias**。若不是 Keyframe，該幀不新增後端狀態，IMU 繼續累積到下一個 Keyframe。
+5. 是 Keyframe 時，將上一個 Keyframe 到這一個 Keyframe 之間的 IMU 預積分（`CombinedImuFactor`）連同 `FrameFeatures`（`GenericStereoFactor`）交給 `Backend` 進行滑動視窗優化，修正姿態、速度與 IMU Bias。
 6. 把 `Backend` 在此刻的最新估計值 `T_W_B` 寫入 TUM 軌跡檔，並記錄到 Rerun。動態初始化完成前（11.5）不輸出姿態。
 
 前端的耗時 KPI（10 ms）包含步驟 2 和 3；後端的耗時 KPI（35 ms）是步驟 5 中 `IncrementalFixedLagSmoother::update` 的時間。
@@ -201,15 +198,14 @@ concept Tracker = requires(T t, const cv::Mat& left, const cv::Mat& right, Times
 `FeatureDetector` 的 Concept 也照同樣方式定義（輸入影像與既有特徵位置，輸出新特徵點）。第一版每個 Concept 只有一種實作，
 主程式以樣板參數接收，不用 virtual 函式。
 
-`SensorSync` 對外提供：
+`SensorSync` 負責接收感測器事件、配對同時間戳的左右影像，並在確認 IMU 時間戳已涵蓋該影像時刻（`last_imu_t >= t_img`）後才輸出 `StereoImages`，確保每一幀都能取得同步的 IMU 資料。對外提供：
 
 ```cpp
 std::span<const ImuData> ImuBetween(Timestamp t0, Timestamp t1);
 ```
 
-回傳的區間第一筆與最後一筆分別內插到 `t0`、`t1`，因此不能直接指向原始緩衝區。做法是 `SensorSync` 內部維護一個
-`std::vector<ImuData>` 工作區，每次組好區間後回傳指向它的 span；span 只在下一次呼叫前有效。`t0` 之前的原始資料會被丟棄，
-緩衝區不會無限長大。
+回傳的區間第一筆與最後一筆分別線性內插到 `t0`、`t1`，因此不能直接指向原始緩衝區。做法是 `SensorSync` 內部維護一個
+`std::vector<ImuData>` 工作區，每次組好區間後回傳指向它的 span；span 只在下一次呼叫前有效。已不再需要的舊原始資料（小於內插 `t0` 所需的前一筆樣本）會被丟棄，緩衝區不會無限長大。
 
 ## 7. 雙目校正（階段 1）
 
@@ -313,18 +309,30 @@ stateDiagram-v2
 
 ## 11. IMU 與初始化（階段 4–5）
 
-### 11.1 為什麼只有 Keyframe 是狀態
+### 11.1 每一幀的 IMU 與 Keyframe 校正漂移的分工
 
-每一筆 IMU 量測都會用上，只是相鄰 Keyframe 之間的量測（0.2–0.3 秒，約 40–60 筆）先預積分成一個相對運動量（ΔR、Δv、Δp），
-雜訊也一路傳遞成它的協方差。一個預積分因子與「每幀一個因子串成鏈」提供的約束幾乎等價，差別只在兩處近似：區間內 Bias 視為常數
-（Bias 改變時以一階近似修正），以及線性化點不同。區間短時這兩項都很小；`keyframe.max_interval_s` 限制區間長度，
-也是為了避免預積分誤差隨時間累積（位置誤差約與時間的三次方成正比）。
+在 VIO 中，每一幀都搭配 IMU 量測運作，而 Keyframe 負責在後端因子圖中校正（Calibrate）IMU 的累積漂移與 Bias：
 
-把每一幀都變成狀態，多出來的資訊主要來自視覺，而且效益有限：
+- **每一幀的 IMU 推算與預積分累積**：每一幀影像都有對應的 IMU 區間，用於推算當下狀態與累積預積分（ΔR、Δv、Δp），雜訊也一路傳遞成協方差。然而單靠 IMU 積分，受雜訊與未校準的 Bias 影響，位置誤差約與時間的三次方成正比（$\propto \Delta t^3$），很快就會發散。
+- **Keyframe 校正 IMU 漂移**：當 `KeyframeSelector` 選出 Keyframe（3–5 Hz）時，才在滑動視窗後端新增狀態變數（`X`、`V`、`B`），將相鄰 Keyframe 之間累積的預積分包成一個 `CombinedImuFactor`，並結合雙目視覺因子（`GenericStereoFactor`）共同優化，藉此修正 IMU 的軌跡漂移並更新 Bias 估計值。一個預積分因子與「每幀一個因子串成鏈」提供的慣性約束幾乎等價，差別只在兩處近似：區間內 Bias 視為常數（Bias 改變時以一階近似修正），以及線性化點不同。區間短時這兩項都很小；`keyframe.max_interval_s` 限制區間長度，也是為了避免預積分誤差在兩次校正之間累積過大。
 
-- 相鄰幀只差幾公分，觀測高度重複，對幾何的約束增加很少。
-- 相鄰幀的 KLT 追蹤誤差高度相關，但因子圖假設觀測互相獨立，觀測越密越會過度自信。
-- 3 秒視窗的狀態會從 10–15 個變成約 60 個（每個 15 維），視覺因子多出 4–5 倍，後端耗時 KPI 難以達成。
+不在每一幀都建立後端因子圖狀態的理由：
+
+- **兩個 Keyframe 之間的 IMU 資料沒有丟掉，而是摺進一個因子。** 預積分把區間內的每一筆 IMU 量測壓成一個
+  `CombinedImuFactor`，與「每幀一個因子串成鏈」幾乎等價（兩處近似見上一點）。跳過中間幀，損失的只有那些幀的視覺觀測，
+  而那正是下一點所說重複的部分。中間幀仍在前端使用：KLT 需要相鄰幀之間的位移很小，所以追蹤器每一幀都要跑。
+- **相鄰幀提供的幾何資訊很少。** 20 Hz 下相鄰幀只差幾公釐到幾公分，從幾乎相同的視角看同一批 Landmark。約束運動的是視差，
+  而視差要隔一段時間才累積得出來；FR-4 的平均視差門檻就是這個意思：視角變化夠大，才值得新增一個狀態。
+- **觀測越密越過度自信。** 相鄰幀的 KLT 追蹤誤差高度相關，但因子圖假設觀測互相獨立，同一個誤差被重複計算。
+- **計算量。** 3 秒視窗的狀態會從 10–15 個變成約 60 個（每個 15 維：姿態 6、速度 3、Bias 6）；被追蹤 1 秒的 Landmark，
+  視覺因子從約 4 個變成約 20 個。Landmark 把觀測它的所有狀態連在一起，消去或邊緣化 Landmark 時這些狀態之間會產生 fill-in，
+  狀態越密越嚴重，後端耗時 KPI（35 ms）難以達成。
+- **同樣的計算量換到較長的時間跨度。** 視窗以秒定義，不是以狀態數定義。若計算量只容許約 15 個狀態，用 Keyframe 可涵蓋 3 秒，
+  每幀都建狀態只能涵蓋 0.75 秒。加速度計 Bias、重力方向與速度要在一段夠長的時間內有足夠的運動才看得出來；視窗太短時，
+  加速度計 Bias 與重力方向的傾斜幾乎無法區分。
+
+非 Keyframe 雖然不是後端狀態，仍然有姿態：用 IMU 從最新 Keyframe 往前推（11.2 的高頻率姿態輸出）。追丟時也不能讓每一幀都變成
+Keyframe（requirements.md 的「追丟處理」），否則狀態數會暴增。
 
 這個取捨在階段 5 用實驗驗證（第 17 節）。
 

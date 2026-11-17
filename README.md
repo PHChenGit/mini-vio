@@ -97,6 +97,31 @@ shows false "file not found" errors.
 - `docker` on this host is podman-docker, so the Dev Containers CLI drives Podman. If the editor cannot reach it, start
   the socket with `systemctl --user enable --now podman.socket`.
 
+### Editing from another machine (SSH into the container)
+
+`scripts/podman.sh start` also runs sshd in the dev container and publishes it on host port 7777 (set `REMOTE_PORT`
+to change it). This is the simplest way to edit from another machine, for example OpenIDEA on Windows: the editor
+connects straight into the container, so clangd, the headers and `compile_commands.json` all match.
+
+- Login is `ubuntu` with a key only (no passwords, no root). The keys are your host's `~/.ssh/authorized_keys`,
+  mounted read-only, so any key that can SSH into the host can SSH into the container.
+- Files written to `/workspace` over SSH are owned by your host user (`--userns=keep-id`).
+- The port is open on every interface. If the host runs a firewall, allow it, e.g. `sudo ufw allow 7777/tcp`.
+- The port is set when the container is created: after changing `REMOTE_PORT`, run `stop` and then `start`.
+- Rebuilding the image regenerates the container's SSH host keys, so clients warn about a changed host key. Remove the
+  old entry with `ssh-keygen -R "[<host>]:7777"`.
+
+On the client, add to `~/.ssh/config` (on Windows `C:\Users\<you>\.ssh\config`):
+
+```
+Host mini-vio
+    HostName <host IP or name>
+    Port 7777
+    User ubuntu
+```
+
+Then `ssh mini-vio` lands in the container. In the editor, connect to the SSH host `mini-vio` and open `/workspace`.
+
 ### Code style: format and lint
 
 Google C++ style with a 120-column limit and 4-space indentation. `.clang-format` defines the layout, `.clang-tidy`

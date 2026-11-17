@@ -43,6 +43,8 @@ git config core.hooksPath scripts/git-hooks          # once per clone: enables t
 ```
 
 Mounts: repo → `/workspace`, `~/Documents/datasets/EuRoC` → `/data/euroc` (read-only, override with `EUROC_DIR`).
+The dev container (`start`) also runs sshd on host port 7777 (`REMOTE_PORT`), key-only as `ubuntu`, keys from the
+host's `~/.ssh/authorized_keys`, so a remote editor can SSH straight into it and open `/workspace`.
 Rerun recordings (`.rrd`) are viewed on the host with `rerun` 0.43.2 (must match the SDK version in the image).
 ATE evaluation uses `evo_ape euroc <mav0/state_groundtruth_estimate0/data.csv> <traj.tum> -a` (evo is in the image).
 

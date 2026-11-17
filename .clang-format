@@ -5,6 +5,8 @@ ColumnLimit: 120
 IndentWidth: 4
 # Keep public:/private: flush with the class keyword.
 AccessModifierOffset: -4
+# Namespace contents stay at column 0 (Google's default, stated so editors and reviewers see it).
+NamespaceIndentation: None
 # Google's default derives pointer alignment from the file; make it fixed.
 DerivePointerAlignment: false
 PointerAlignment: Left

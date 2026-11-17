@@ -57,8 +57,21 @@ RUN curl -fsSL -o /tmp/rerun_cpp_sdk.zip \
 #   find_package(Ceres), link Ceres::ceres.
 # - GoogleTest: find_package(GTest), link GTest::gtest_main.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        libceres-dev libgtest-dev \
+        libceres-dev libgtest-dev openssh-server \
     && rm -rf /var/lib/apt/lists/*
+
+# SSH into the dev container (scripts/podman.sh start publishes port 22 and
+# starts sshd). Key login as `ubuntu` only; the key comes from the host's
+# ~/.ssh/authorized_keys, mounted read-only. Host keys are generated here, so
+# rebuilding this layer changes them and clients see a new host key.
+RUN ssh-keygen -A \
+    && printf '%s\n' \
+        'PasswordAuthentication no' \
+        'KbdInteractiveAuthentication no' \
+        'PermitRootLogin no' \
+        'AllowUsers ubuntu' \
+        > /etc/ssh/sshd_config.d/mini-vio.conf \
+    && install -d -m 700 -o ubuntu -g ubuntu /home/ubuntu/.ssh
 
 RUN ldconfig
 
@@ -80,5 +93,8 @@ RUN ${VIRTUAL_ENV}/bin/pip install --no-cache-dir \
         clangd==${CLANGD_VERSION}
 ENV PATH=${VIRTUAL_ENV}/bin:${PATH} \
     MPLBACKEND=Agg
+
+# SSH sessions do not inherit ENV; pam_env reads /etc/environment instead.
+RUN printf 'PATH=%s\nVIRTUAL_ENV=%s\nMPLBACKEND=%s\n' "$PATH" "$VIRTUAL_ENV" "$MPLBACKEND" > /etc/environment
 
 WORKDIR /workspace
