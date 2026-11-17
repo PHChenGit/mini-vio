@@ -30,3 +30,4 @@ __pycache__/
 # Program output: Rerun recordings, trajectories, timing CSVs
 *.rrd
 /output/
+.Trash-1000/

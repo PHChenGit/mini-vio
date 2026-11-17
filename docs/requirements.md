@@ -30,8 +30,8 @@ FR-1 資料集讀取 (DatasetReader)
   - 支援設定起始時間與播放長度，僅供除錯使用（例如只重跑某一段）。驗收一律從序列的第一筆資料開始，不跳過任何片段。
 
 FR-2 感測器同步 (SensorSync)
-  - 以時間戳配對左右影像，無法配對的影像直接丟棄。
-  - 對任意兩個影像時刻，以 std::span<const ImuData> 提供涵蓋該區間的 IMU 序列，區間兩端以線性內插補齊。
+  - 以時間戳配對左右影像，無法配對的影像直接丟棄；配對完成的雙目影像需等待 IMU 資料時間戳到達或超過該影像時間戳（`last_imu_t >= t_img`）才輸出，確保每一幀都有對應的 IMU 資料。
+  - 對相鄰幀或相鄰 Keyframe 的兩個時刻，以 std::span<const ImuData> 提供涵蓋該區間的 IMU 序列，區間兩端以線性內插補齊。
 
 FR-3 雙目前端 (FeatureDetector / Tracker)
   - 特徵偵測： 以網格均勻分布的方式補點，維持約 150 個追蹤中的特徵。
@@ -41,6 +41,7 @@ FR-3 雙目前端 (FeatureDetector / Tracker)
   - 輸出： 每個特徵的唯一 ID 與校正（Rectified）座標下的雙目量測 (uL, uR, v)。
 
 FR-4 關鍵幀選擇 (Keyframe Selection)
+  - 每一幀皆配對 IMU 以進行運動推算與預積分累積；Keyframe 則用於進入後端因子圖，以視覺觀測校正（Calibrate）IMU 的累積漂移與 Bias。
   - 符合任一條件即建立 Keyframe：平均視差超過門檻、追蹤中的特徵數低於門檻、距離上一個 Keyframe 超過最長間隔。
   - 目標頻率約 3–5 Hz，使 3.0 秒視窗內維持 10–15 個 Keyframe。
 
